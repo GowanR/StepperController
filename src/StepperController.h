@@ -22,9 +22,15 @@ class StepperController {
         void setJog( float rotations );         // will jog the motor `rotations` number of rotations at set speed
         void setRange( float min, float max );  // sets soft stops (in rotations) for stepper motor
         float getPosition();                    // gets the current position, in rotations, that the motor is at
+        void setSlave(StepperController &motor);// sets the slave motor
+        void clearSlave();                      // removes the slave/breaks slave motor free
+        void invert();                          // inverts the direction of the motor
         ~StepperController();
     
     private:
+        bool _isInverted;                       // switches the direction of the motor for all opetations.
+        bool _hasSlave;                         // true if the motor has a follower "slave" motor.
+        StepperController *_slave;              // motor that will follow this motor.
         unsigned short _stepPin;
         unsigned short _directionPin;
         long _currentPosition;
@@ -49,5 +55,5 @@ class StepperController {
         unsigned long rpmToMicros( float RPM );             // converts RPM into microsecond delays between stepping
         int rotationsToSteps( float rotations );            // converts rotations to steps
         bool motorInRange();                                // checks if motor will break out of soft stops directionaly
-        
+        bool getDirection();                                // returns the current direciton of the motor
 };

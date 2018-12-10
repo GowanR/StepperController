@@ -21,9 +21,43 @@ StepperController::StepperController ( unsigned short stepPin, unsigned short di
     _upperSoftStop = 0;                   // set upper soft stop to 0
     _lowerSoftStop = 0;                   // set lower soft stop to 0
     _positionSetpoint = 0;                // the default position setpoint is zero
-
+    _isInverted = false;                  // the motor is not inverted by default
     pinMode( _stepPin, OUTPUT );
     pinMode( _directionPin, OUTPUT );
+}
+
+/**
+ * Inverts the motor direciton. Toggles the default direction for sign.
+ */
+void StepperController::invert() {
+    _isInverted = !_isInverted;
+}
+
+/**
+ * Gets the adjusted direction that takes the inverted state into account
+ * @returns the adjusted direction
+ */
+bool StepperController::getDirection() {
+    return _isInverted ? !_direction : _direction;
+}
+
+/**
+ * Gives this motor a slave motor.
+ * The motor passed will now follow the exact same step instructions as this motor.
+ * @param address of motor to make slave
+ */
+void StepperController::setSlave(StepperController &motor) {
+    _hasSlave = true;
+    _slave = &motor;
+    _slave->disable(); // prevent motor form interpreting any other commands.
+}
+
+/**
+ * Clears the salve and sets it free.
+ */
+void StepperController::clearSlave() {
+    _hasSlave = false;
+    _slave->enable(); // allow the motor to be controlled by the outside world again.
 }
 
 /**
@@ -31,11 +65,15 @@ StepperController::StepperController ( unsigned short stepPin, unsigned short di
  * If this is called twice, the stepper motor will have turned a step.
  */ 
 void StepperController::step() {
-    digitalWrite( _directionPin, _direction ? HIGH : LOW );
+    digitalWrite( _directionPin, getDirection() ? HIGH : LOW );
     digitalWrite( _stepPin, _stepActive ? LOW : HIGH );
     _stepActive = !_stepActive;
     _timeSinceLastStep = 0;
     _direction ? _currentPosition++ : _currentPosition--;
+
+    if ( _hasSlave ) {
+        _slave->step();
+    }
 }
 
 /**
