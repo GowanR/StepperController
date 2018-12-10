@@ -25,6 +25,7 @@ class StepperController {
         void setSlave(StepperController &motor);// sets the slave motor
         void clearSlave();                      // removes the slave/breaks slave motor free
         void invert();                          // inverts the direction of the motor
+        void setStepsPerRevolution( int steps );// sets the number of steps per revolution. Default is 200.
         ~StepperController();
     
     private:
@@ -40,6 +41,7 @@ class StepperController {
         float _currentSpeed;
         float _positionSetpoint;
         bool _stepActive;
+        int _stepsPerRevolution;             // number of steps per revoltion of the stepper motor. Typically 200.
         unsigned long _timeSinceLastStep;   // in microseconds
         bool _motorEnabled;                 // if false, motor will not do anything
         enum Mode {

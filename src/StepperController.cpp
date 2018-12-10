@@ -4,8 +4,6 @@
 
 #include "StepperController.h"
 
-#define STEPS_PER_REVOLUTION 200 // typical 200 steps per revolution
-
 /**
  * Constructs the motor controller.
  * @param the Arduino pin used for step control.
@@ -22,6 +20,7 @@ StepperController::StepperController ( unsigned short stepPin, unsigned short di
     _lowerSoftStop = 0;                   // set lower soft stop to 0
     _positionSetpoint = 0;                // the default position setpoint is zero
     _isInverted = false;                  // the motor is not inverted by default
+    _stepsPerRevolution = 200;
     pinMode( _stepPin, OUTPUT );
     pinMode( _directionPin, OUTPUT );
 }
@@ -31,6 +30,14 @@ StepperController::StepperController ( unsigned short stepPin, unsigned short di
  */
 void StepperController::invert() {
     _isInverted = !_isInverted;
+}
+
+/**
+ * Sets how many steps the motor must make to turn one revoltion.
+ * @param number of steps per revoltion
+ */
+void StepperController::setStepsPerRevolution( int steps ) {
+    _stepsPerRevolution = steps;
 }
 
 /**
@@ -82,7 +89,7 @@ void StepperController::step() {
  * @returns microsecond interval between steps
  */
 unsigned long StepperController::rpmToMicros( float RPM ) {
-    return (unsigned long)((60.f * 1e6) / (abs(RPM) * 200.f));
+    return (unsigned long)((60.f * 1e6) / (abs(RPM) * ((float)_stepsPerRevolution)));
 }
 
 /**
@@ -91,7 +98,7 @@ unsigned long StepperController::rpmToMicros( float RPM ) {
  * @return number of steps the motor needs to take to equate to approximate rotations.
  */
 int StepperController::rotationsToSteps( float rotations ) {
-    return (int) (rotations * STEPS_PER_REVOLUTION);
+    return (int) (rotations * _stepsPerRevolution);
 }
 
 /**
@@ -99,7 +106,7 @@ int StepperController::rotationsToSteps( float rotations ) {
  * @returns the current position of the motor in revoltions
  */
 float StepperController::getPosition() {
-    return _currentPosition / 400.f;          // 400 because all of the functions run half steps.
+    return _currentPosition / (2.f * _stepsPerRevolution);
 }
 
 /**
