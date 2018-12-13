@@ -26,6 +26,58 @@ StepperController::StepperController ( unsigned short stepPin, unsigned short di
 }
 
 /**
+ * Converts seconds into microseconds.
+ * @param seconds to convert
+ */
+unsigned long StepperController::secondsToMicros( float seconds ) {
+    return (unsigned long) (seconds * 1000000.f);
+}
+
+/**
+ * Generates a linked list definition of the motionprofile defined in the arrays.
+ * Will return a node with all zeros if the arrays aren't of equal size.
+ * @param array (of length n) of position values
+ * @param array (of length n) of correlating time stamps to the position values 
+ */
+static ProfileNode* StepperController::generateProfile( float pos[], float timestamp[] ) {
+    size_t posSize = sizeof( pos ) / sizeof( pos[0] );
+    size_t timeSize = sizeof( timestamp ) / sizeof( timestamp[0] );
+    if ( posSize == timeSize ) {
+        struct ProfileNode badNode {
+            .position = 0,
+            .timestamp = 0
+        };
+        return badNode;
+    } 
+    struct ProfileNode *head;
+    head = malloc( sizeof( struct ProfileNode) );
+    struct ProfileNode *next = &head;
+    struct ProfileNode *now = malloc( sizeof( struct ProfileNode ) );
+    for ( unsigned short i = 0; i < (unsigned short)posSize; i++ ) {
+        next->position = pos[i];
+        next->timestamp = secondsToMicros( timestamp[i] );
+        next->nextNode = now;
+        
+        next = now;
+    }
+    return head;
+}
+
+/**
+ * Gets the current mode of the motor.
+ * @returns mode of the motor (0-3)
+ *  --------------
+ * | speed    | 0 |
+ * | jog      | 1 |
+ * | position | 2 |
+ * | profile  | 3 |
+ *  --------------
+ */
+int StepperController::getMode() {
+    return (int) _mode;
+}
+
+/**
  * Inverts the motor direciton. Toggles the default direction for sign.
  */
 void StepperController::invert() {
@@ -33,8 +85,8 @@ void StepperController::invert() {
 }
 
 /**
- * Sets how many steps the motor must make to turn one revoltion.
- * @param number of steps per revoltion
+ * Sets how many steps the motor must make to turn one revolution.
+ * @param number of steps per revolution
  */
 void StepperController::setStepsPerRevolution( int steps ) {
     _stepsPerRevolution = steps;
@@ -52,6 +104,7 @@ bool StepperController::getDirection() {
  * Gives this motor a slave motor.
  * The motor passed will now follow the exact same step instructions as this motor.
  * @param address of motor to make slave
+ * @param address of motor to make slave
  */
 void StepperController::setSlave(StepperController &motor) {
     _hasSlave = true;
@@ -60,7 +113,7 @@ void StepperController::setSlave(StepperController &motor) {
 }
 
 /**
- * Clears the salve and sets it free.
+ * Clears the slave and sets it free.
  */
 void StepperController::clearSlave() {
     _hasSlave = false;
@@ -103,7 +156,7 @@ int StepperController::rotationsToSteps( float rotations ) {
 
 /**
  * Function used to get the current position of the motor in revolutions.
- * @returns the current position of the motor in revoltions
+ * @returns the current position of the motor in revolutions
  */
 float StepperController::getPosition() {
     return _currentPosition / (2.f * _stepsPerRevolution);
@@ -122,8 +175,8 @@ void StepperController::setSpeed( float speed ) {
 /**
  * Sets the 'soft' stops of the motor. This bound the motor to up to two values in revolutions.
  * 
- * @param the lower soft stop value in revoltions.
- * @param the upper soft stop value in revoltions.
+ * @param the lower soft stop value in revolutions.
+ * @param the upper soft stop value in revolutions.
  */
 void StepperController::setRange( float min, float max ) {
     _lowerSoftStop = rotationsToSteps(min);
@@ -161,7 +214,7 @@ void StepperController::disable() {
 
 /**
  * Sets the motor mode to jog.
- * Jog mode is based on sending the motor a command to move x revoltions in a given direciton.
+ * Jog mode is based on sending the motor a command to move x revolutions in a given direciton.
  */
 void StepperController::setJogMode() {
     _mode = jog;
@@ -169,7 +222,7 @@ void StepperController::setJogMode() {
 
 /**
  * Sets the motor mode to speed.
- * Speed mode tells teh motor to spin in a direction at a specified RPM
+ * Speed mode tells the motor to spin in a direction at a specified RPM
  */
 void StepperController::setSpeedMode() {
     _mode = speed;
