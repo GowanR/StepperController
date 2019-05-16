@@ -2,6 +2,9 @@
   StepperController.h - Library for controlling multiple A4988 chips concurrently with dynamic motion profiles.
 */
 
+#ifndef __STEPPERCONTROLLER_H_
+#define __STEPPERCONTROLLER_H_
+
 #include "Arduino.h"
 
 
@@ -9,7 +12,7 @@
 
 class StepperController {
     public:
-        StepperController( unsigned short stepPin, unsigned short directionPin );
+        StepperController( unsigned short stepPin, unsigned short directionPin, unsigned short sleepPin );
         
         void step();                            // causes motor to take a step (alternate coil power)
         void update( unsigned long dt );        // updates the motor
@@ -24,7 +27,7 @@ class StepperController {
         void setPosition( float setpoint );     // sets the target position of the motor. Will approach the target at the set speed
         void setJog( float rotations );         // will jog the motor `rotations` number of rotations at set speed
         void setRange( float min, float max );  // sets soft stops (in rotations) for stepper motor
-        void setProfile( ProfileNode *head);    // sets the current profile to the given node
+        // void setProfile( ProfileNode *head);    // sets the current profile to the given node
         float getPosition();                    // gets the current position, in rotations, that the motor is at
         void setSlave(StepperController &motor);// sets the slave motor
         void clearSlave();                      // removes the slave/breaks slave motor free
@@ -39,6 +42,7 @@ class StepperController {
         StepperController *_slave;              // motor that will follow this motor.
         unsigned short _stepPin;
         unsigned short _directionPin;
+        unsigned short _sleepPin;
         long _currentPosition;
         long _lowerSoftStop;
         long _upperSoftStop;
@@ -65,3 +69,4 @@ class StepperController {
         bool motorInRange();                                // checks if motor will break out of soft stops directionaly
         bool getDirection();                                // returns the current direciton of the motor
 };
+#endif

@@ -3,15 +3,16 @@
 */
 
 #include "StepperController.h"
-
+#define MICROSTEP_CONFIG 16
 /**
  * Constructs the motor controller.
  * @param the Arduino pin used for step control.
  * @param teh Arduino pin used for direction control.
  */
-StepperController::StepperController ( unsigned short stepPin, unsigned short directionPin ) {
+StepperController::StepperController ( unsigned short stepPin, unsigned short directionPin, unsigned short sleepPin ) {
     _directionPin = directionPin;
     _stepPin = stepPin;
+    _sleepPin = sleepPin;
     _mode = jog;                          // default mode is jog
     _currentPosition = 0;                 // starting position of motor is 0 steps, this stacks half steps
     _motorEnabled = true;                 // true when the motor can move
@@ -20,7 +21,7 @@ StepperController::StepperController ( unsigned short stepPin, unsigned short di
     _lowerSoftStop = 0;                   // set lower soft stop to 0
     _positionSetpoint = 0;                // the default position setpoint is zero
     _isInverted = false;                  // the motor is not inverted by default
-    _stepsPerRevolution = 200;
+    _stepsPerRevolution = 200 * MICROSTEP_CONFIG;
     pinMode( _stepPin, OUTPUT );
     pinMode( _directionPin, OUTPUT );
 }
@@ -39,29 +40,29 @@ unsigned long StepperController::secondsToMicros( float seconds ) {
  * @param array (of length n) of position values
  * @param array (of length n) of correlating time stamps to the position values 
  */
-static ProfileNode* StepperController::generateProfile( float pos[], float timestamp[] ) {
-    size_t posSize = sizeof( pos ) / sizeof( pos[0] );
-    size_t timeSize = sizeof( timestamp ) / sizeof( timestamp[0] );
-    if ( posSize == timeSize ) {
-        struct ProfileNode badNode {
-            .position = 0,
-            .timestamp = 0
-        };
-        return badNode;
-    } 
-    struct ProfileNode *head;
-    head = malloc( sizeof( struct ProfileNode) );
-    struct ProfileNode *next = &head;
-    struct ProfileNode *now = malloc( sizeof( struct ProfileNode ) );
-    for ( unsigned short i = 0; i < (unsigned short)posSize; i++ ) {
-        next->position = pos[i];
-        next->timestamp = secondsToMicros( timestamp[i] );
-        next->nextNode = now;
+// static ProfileNode* StepperController::generateProfile( float pos[], float timestamp[] ) {
+//     size_t posSize = sizeof( pos ) / sizeof( pos[0] );
+//     size_t timeSize = sizeof( timestamp ) / sizeof( timestamp[0] );
+//     if ( posSize == timeSize ) {
+//         struct ProfileNode badNode {
+//             .position = 0,
+//             .timestamp = 0
+//         };
+//         return badNode;
+//     } 
+//     struct ProfileNode *head;
+//     head = malloc( sizeof( struct ProfileNode) );
+//     struct ProfileNode *next = &head;
+//     struct ProfileNode *now = malloc( sizeof( struct ProfileNode ) );
+//     for ( unsigned short i = 0; i < (unsigned short)posSize; i++ ) {
+//         next->position = pos[i];
+//         next->timestamp = secondsToMicros( timestamp[i] );
+//         next->nextNode = now;
         
-        next = now;
-    }
-    return head;
-}
+//         next = now;
+//     }
+//     return head;
+// }
 
 /**
  * Gets the current mode of the motor.
