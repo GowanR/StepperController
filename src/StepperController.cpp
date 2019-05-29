@@ -3,7 +3,15 @@
 */
 
 #include "StepperController.h"
-#define MICROSTEP_CONFIG 16
+
+/**
+ * MICROSTEP_CONFIG
+ * | STEP MODE | VALUE |
+ * |    FULL   |   1   |
+ * |  QUARTER  |   4   |
+ * | SIXTEENTH |   16  |
+ */
+#define MICROSTEP_CONFIG 1
 /**
  * Constructs the motor controller.
  * @param the Arduino pin used for step control.
@@ -22,8 +30,10 @@ StepperController::StepperController ( unsigned short stepPin, unsigned short di
     _positionSetpoint = 0;                // the default position setpoint is zero
     _isInverted = false;                  // the motor is not inverted by default
     _stepsPerRevolution = 200 * MICROSTEP_CONFIG;
+    _sleepOnDisable = true;
     pinMode( _stepPin, OUTPUT );
     pinMode( _directionPin, OUTPUT );
+    pinMode( _sleepPin, OUTPUT );
 }
 
 /**
@@ -76,6 +86,10 @@ unsigned long StepperController::secondsToMicros( float seconds ) {
  */
 int StepperController::getMode() {
     return (int) _mode;
+}
+
+float StepperController::getSpeed() {
+    return _currentSpeed;
 }
 
 /**
@@ -199,11 +213,16 @@ void StepperController::tare() {
     _currentPosition = 0;
 }
 
+void StepperController::setSleepOnDisable(bool sleep) {
+    _sleepOnDisable = sleep;
+}
+
 /** 
  * Allows the motor to move when updated.
  */
 void StepperController::enable() {
     _motorEnabled = true;
+    digitalWrite(_sleepPin, HIGH);
 }
 
 /**
@@ -211,6 +230,9 @@ void StepperController::enable() {
  */
 void StepperController::disable() {
     _motorEnabled = false;
+    if(_sleepOnDisable) {
+        digitalWrite(_sleepPin, LOW);
+    }
 }
 
 /**

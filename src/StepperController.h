@@ -28,12 +28,14 @@ class StepperController {
         void setJog( float rotations );         // will jog the motor `rotations` number of rotations at set speed
         void setRange( float min, float max );  // sets soft stops (in rotations) for stepper motor
         // void setProfile( ProfileNode *head);    // sets the current profile to the given node
+        float getSpeed();                       // returns the speed of the motor
         float getPosition();                    // gets the current position, in rotations, that the motor is at
         void setSlave(StepperController &motor);// sets the slave motor
         void clearSlave();                      // removes the slave/breaks slave motor free
         void invert();                          // inverts the direction of the motor
         void setStepsPerRevolution( int steps );// sets the number of steps per revolution. Default is 200.
         int getMode();                         // returns the motor's current mode
+        void setSleepOnDisable(bool sleep);    // This will make the motor sleep pin pull when the
         ~StepperController();
     
     private:
@@ -47,6 +49,7 @@ class StepperController {
         long _lowerSoftStop;
         long _upperSoftStop;
         bool _direction;
+        bool _sleepOnDisable; // this will make the motor sleep when the motor is disabled which will reduce heat and increase efficiency.
         float _currentSpeed;
         float _positionSetpoint;
         bool _stepActive;
