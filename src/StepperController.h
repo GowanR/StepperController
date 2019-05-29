@@ -2,12 +2,18 @@
   StepperController.h - Library for controlling multiple A4988 chips concurrently with dynamic motion profiles.
 */
 
+#ifndef __STEPPERCONTROLLER_H_
+#define __STEPPERCONTROLLER_H_
+
 #include "Arduino.h"
+
+
 
 
 class StepperController {
     public:
-        StepperController( unsigned short stepPin, unsigned short directionPin );
+        StepperController( unsigned short stepPin, unsigned short directionPin, unsigned short sleepPin );
+        
         void step();                            // causes motor to take a step (alternate coil power)
         void update( unsigned long dt );        // updates the motor
         void tare();                            // tares position of stepper to zero steps
@@ -21,11 +27,15 @@ class StepperController {
         void setPosition( float setpoint );     // sets the target position of the motor. Will approach the target at the set speed
         void setJog( float rotations );         // will jog the motor `rotations` number of rotations at set speed
         void setRange( float min, float max );  // sets soft stops (in rotations) for stepper motor
+        // void setProfile( ProfileNode *head);    // sets the current profile to the given node
+        float getSpeed();                       // returns the speed of the motor
         float getPosition();                    // gets the current position, in rotations, that the motor is at
         void setSlave(StepperController &motor);// sets the slave motor
         void clearSlave();                      // removes the slave/breaks slave motor free
         void invert();                          // inverts the direction of the motor
         void setStepsPerRevolution( int steps );// sets the number of steps per revolution. Default is 200.
+        int getMode();                         // returns the motor's current mode
+        void setSleepOnDisable(bool sleep);    // This will make the motor sleep pin pull when the
         ~StepperController();
     
     private:
@@ -34,10 +44,12 @@ class StepperController {
         StepperController *_slave;              // motor that will follow this motor.
         unsigned short _stepPin;
         unsigned short _directionPin;
+        unsigned short _sleepPin;
         long _currentPosition;
         long _lowerSoftStop;
         long _upperSoftStop;
         bool _direction;
+        bool _sleepOnDisable; // this will make the motor sleep when the motor is disabled which will reduce heat and increase efficiency.
         float _currentSpeed;
         float _positionSetpoint;
         bool _stepActive;
@@ -51,6 +63,7 @@ class StepperController {
             profile    // motor will follow the acceleration, positon, and velocity profile
         };
         Mode _mode;
+        unsigned long secondsToMicros( float seconds );    // converts seconds to microseconds
         void updateSpeedMode( unsigned long dt );
         void updatePositionMode( unsigned long dt );
         void updateProfileMode( unsigned long dt );
@@ -59,3 +72,4 @@ class StepperController {
         bool motorInRange();                                // checks if motor will break out of soft stops directionaly
         bool getDirection();                                // returns the current direciton of the motor
 };
+#endif
