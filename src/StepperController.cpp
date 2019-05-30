@@ -15,12 +15,16 @@
 /**
  * Constructs the motor controller.
  * @param the Arduino pin used for step control.
- * @param teh Arduino pin used for direction control.
+ * @param the Arduino pin used for direction control.
  */
 StepperController::StepperController ( unsigned short stepPin, unsigned short directionPin, unsigned short sleepPin ) {
+    
+    _microsteppingPinsSet = false;       // the microstepping pins are not configured by default.
     _directionPin = directionPin;
     _stepPin = stepPin;
     _sleepPin = sleepPin;
+    _stepControlMode = FULL_STEP;
+    _microstepConversion = 1;             // represents full step
     _mode = jog;                          // default mode is jog
     _currentPosition = 0;                 // starting position of motor is 0 steps, this stacks half steps
     _motorEnabled = true;                 // true when the motor can move
@@ -29,11 +33,89 @@ StepperController::StepperController ( unsigned short stepPin, unsigned short di
     _lowerSoftStop = 0;                   // set lower soft stop to 0
     _positionSetpoint = 0;                // the default position setpoint is zero
     _isInverted = false;                  // the motor is not inverted by default
-    _stepsPerRevolution = 200 * MICROSTEP_CONFIG;
+    _stepsPerRevolution = 200 * _microstepConversion;
     _sleepOnDisable = true;
     pinMode( _stepPin, OUTPUT );
     pinMode( _directionPin, OUTPUT );
     pinMode( _sleepPin, OUTPUT );
+}
+
+
+
+/**
+ * This method changes the microstepping mode for the motor.
+ * ![WARN]: this source is currently voilitile in that it will reset motor position when microstepping configuration is altered.
+ */
+void StepperController::setStepControlMode(StepControlMode mode) {
+    if (!_microsteppingPinsSet)
+    {
+        return;
+    }
+    
+    _stepControlMode = mode;
+    _microstepConversion = mode;
+    _stepsPerRevolution = 200 * _microstepConversion; 
+    _currentPosition = 0;
+    updateMicroStepConfiguration();
+}
+
+void StepperController::configureMicroSteppingPins( unsigned short MS1, unsigned short MS2, unsigned short MS3 ) {
+    _ms1 = MS1;
+    _ms2 = MS2;
+    _ms3 = MS3;
+    _microsteppingPinsSet = true;
+    pinMode(_ms1, OUTPUT);
+    pinMode(_ms2, OUTPUT);
+    pinMode(_ms3, OUTPUT);
+}
+
+
+/** 
+ *  Microstepping configuration for A4988 driver.
+ *  =============================
+ * | STEP TYPE | MS1 | MS2 | MS3 |
+ * |   FULL    |  L  |  L  |  L  |
+ * |   HALF    |  H  |  L  |  L  |
+ * |  QUARTER  |  L  |  H  |  L  |
+ * |  EIGHTH   |  H  |  H  |  L  |
+ * | SIXTEETH  |  H  |  H  |  H  |
+ *  =============================
+ * 
+ */
+
+void StepperController::updateMicroStepConfiguration() {
+    if (!_microsteppingPinsSet)
+    {
+        return;
+    }
+    
+    switch (_stepControlMode) {
+        FULL_STEP: // 0 0 0
+            digitalWrite(_ms1, LOW);
+            digitalWrite(_ms2, LOW);
+            digitalWrite(_ms3, LOW);
+        break;
+        HALF_STEP: // 1 0 0
+            digitalWrite(_ms1, HIGH);
+            digitalWrite(_ms2, LOW);
+            digitalWrite(_ms3, LOW);
+        break;
+        QUARTER_STEP: // 0 1 0
+            digitalWrite(_ms1, LOW);
+            digitalWrite(_ms2, HIGH);
+            digitalWrite(_ms3, LOW);
+        break;
+        EIGHTH_STEP: // 1 1 0
+            digitalWrite(_ms1, HIGH);
+            digitalWrite(_ms2, HIGH);
+            digitalWrite(_ms3, LOW);
+        break;
+        SIXTEENTH_STEP: // 1 1 1
+            digitalWrite(_ms1, HIGH);
+            digitalWrite(_ms2, HIGH);
+            digitalWrite(_ms3, HIGH);
+        break;
+    }
 }
 
 /**

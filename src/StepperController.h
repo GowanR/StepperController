@@ -10,10 +10,22 @@
 
 
 
+enum StepControlMode { // definition of possible control modes. default is full step.
+    FULL_STEP = 1,
+    HALF_STEP = 2,
+    QUARTER_STEP = 4,
+    EIGHTH_STEP = 8,
+    SIXTEENTH_STEP = 16
+};
+
 class StepperController {
     public:
         StepperController( unsigned short stepPin, unsigned short directionPin, unsigned short sleepPin );
-        
+        void configureMicroSteppingPins(
+            unsigned short MS1, 
+            unsigned short MS2, 
+            unsigned short MS3
+        );                                      // sets the pins used to configure microstepping.
         void step();                            // causes motor to take a step (alternate coil power)
         void update( unsigned long dt );        // updates the motor
         void tare();                            // tares position of stepper to zero steps
@@ -36,12 +48,17 @@ class StepperController {
         void setStepsPerRevolution( int steps );// sets the number of steps per revolution. Default is 200.
         int getMode();                         // returns the motor's current mode
         void setSleepOnDisable(bool sleep);    // This will make the motor sleep pin pull when the
+        void setStepControlMode(StepControlMode mode); // sets the microstepping control mode for the given stepper motor.
         ~StepperController();
     
     private:
+        bool _microsteppingPinsSet;             // flag keeps track of if the microstepping pins have been configured.
+        unsigned short _ms1, _ms2, _ms3;        // microstepping pins
         bool _isInverted;                       // switches the direction of the motor for all opetations.
         bool _hasSlave;                         // true if the motor has a follower "slave" motor.
         StepperController *_slave;              // motor that will follow this motor.
+        StepControlMode _stepControlMode; // mode of microstepping
+        unsigned short _microstepConversion;
         unsigned short _stepPin;
         unsigned short _directionPin;
         unsigned short _sleepPin;
@@ -71,5 +88,6 @@ class StepperController {
         int rotationsToSteps( float rotations );            // converts rotations to steps
         bool motorInRange();                                // checks if motor will break out of soft stops directionaly
         bool getDirection();                                // returns the current direciton of the motor
+        void updateMicroStepConfiguration();                // helper function for confiuguring the digital pins for micro stepping
 };
 #endif
