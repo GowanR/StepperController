@@ -18,7 +18,7 @@
  * @param the Arduino pin used for direction control.
  */
 StepperController::StepperController ( unsigned short stepPin, unsigned short directionPin, unsigned short sleepPin ) {
-    
+    _inPosition = false;
     _microsteppingPinsSet = false;       // the microstepping pins are not configured by default.
     _directionPin = directionPin;
     _stepPin = stepPin;
@@ -259,6 +259,10 @@ float StepperController::getPosition() {
     return _currentPosition / (2.f * _stepsPerRevolution);
 }
 
+// long StepperController::getRawPosition() {
+//     return _currentPosition
+// }
+
 /**
  * Funciton that will set the motor's speed in revolutions per minute. Uses speed sign as direction.
  * This function only effects motor behavior in modes: jog, speed, position.
@@ -304,7 +308,7 @@ void StepperController::setSleepOnDisable(bool sleep) {
  */
 void StepperController::enable() {
     _motorEnabled = true;
-    digitalWrite(_sleepPin, HIGH);
+    // digitalWrite(_sleepPin, HIGH);
 }
 
 /**
@@ -313,7 +317,7 @@ void StepperController::enable() {
 void StepperController::disable() {
     _motorEnabled = false;
     if(_sleepOnDisable) {
-        digitalWrite(_sleepPin, LOW);
+        // digitalWrite(_sleepPin, LOW);
     }
 }
 
@@ -390,6 +394,13 @@ void StepperController::updateSpeedMode( unsigned long dt ) {
     _timeSinceLastStep += dt;
 }
 
+float StepperController::getPositionSetpoint() {
+    return _positionSetpoint;
+}
+bool StepperController::isInPosition(){
+    return _inPosition;
+}
+
 /**
  * Updates the motor when it's in position mode.
  * @param the change in time form last loop.
@@ -400,8 +411,10 @@ void StepperController::updatePositionMode( unsigned long dt ) {
     }
     unsigned long _delayTime = rpmToMicros(_currentSpeed) / 2;
     if ( _currentPosition == _positionSetpoint ) {
+        _inPosition = true;
         return;
     }
+    _inPosition = false;
     _direction = ( _positionSetpoint - _currentPosition ) >= 0; // compute direction given current postion and setpoint.
     if ( _timeSinceLastStep >= _delayTime ) {
         step();

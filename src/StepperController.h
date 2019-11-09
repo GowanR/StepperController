@@ -49,6 +49,9 @@ class StepperController {
         int getMode();                         // returns the motor's current mode
         void setSleepOnDisable(bool sleep);    // This will make the motor sleep pin pull when the
         void setStepControlMode(StepControlMode mode); // sets the microstepping control mode for the given stepper motor.
+        float getPositionSetpoint();           // returns the position that the motor is homing to if it's in potision mode.
+        bool isInPosition();                   // checks if motor is in position
+        // float getTrajectory();
         ~StepperController();
     
     private:
@@ -66,6 +69,7 @@ class StepperController {
         long _lowerSoftStop;
         long _upperSoftStop;
         bool _direction;
+        bool _inPosition;
         bool _sleepOnDisable; // this will make the motor sleep when the motor is disabled which will reduce heat and increase efficiency.
         float _currentSpeed;
         float _positionSetpoint;
