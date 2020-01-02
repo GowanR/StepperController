@@ -18,7 +18,7 @@
  * @param the Arduino pin used for direction control.
  */
 StepperController::StepperController ( unsigned short stepPin, unsigned short directionPin, unsigned short sleepPin ) {
-    
+    _inPosition = false;
     _microsteppingPinsSet = false;       // the microstepping pins are not configured by default.
     _directionPin = directionPin;
     _stepPin = stepPin;
@@ -49,7 +49,7 @@ StepperController::StepperController ( unsigned short stepPin, unsigned short di
 void StepperController::setStepControlMode(StepControlMode mode) {
     if (!_microsteppingPinsSet)
     {
-        return;
+        // return;
     }
     
     _stepControlMode = mode;
@@ -181,6 +181,10 @@ void StepperController::invert() {
     _isInverted = !_isInverted;
 }
 
+void StepperController::reverse() {
+    _isInverted = true;
+}
+
 /**
  * Sets how many steps the motor must make to turn one revolution.
  * @param number of steps per revolution
@@ -247,8 +251,8 @@ unsigned long StepperController::rpmToMicros( float RPM ) {
  * @param number of rotations to convert
  * @return number of steps the motor needs to take to equate to approximate rotations.
  */
-int StepperController::rotationsToSteps( float rotations ) {
-    return (int) (rotations * _stepsPerRevolution);
+long long StepperController::rotationsToSteps( float rotations ) {
+    return (rotations * _stepsPerRevolution);
 }
 
 /**
@@ -258,6 +262,10 @@ int StepperController::rotationsToSteps( float rotations ) {
 float StepperController::getPosition() {
     return _currentPosition / (2.f * _stepsPerRevolution);
 }
+
+// long StepperController::getRawPosition() {
+//     return _currentPosition
+// }
 
 /**
  * Funciton that will set the motor's speed in revolutions per minute. Uses speed sign as direction.
@@ -390,6 +398,13 @@ void StepperController::updateSpeedMode( unsigned long dt ) {
     _timeSinceLastStep += dt;
 }
 
+float StepperController::getPositionSetpoint() {
+    return _positionSetpoint;
+}
+bool StepperController::isInPosition(){
+    return _inPosition;
+}
+
 /**
  * Updates the motor when it's in position mode.
  * @param the change in time form last loop.
@@ -400,8 +415,10 @@ void StepperController::updatePositionMode( unsigned long dt ) {
     }
     unsigned long _delayTime = rpmToMicros(_currentSpeed) / 2;
     if ( _currentPosition == _positionSetpoint ) {
+        _inPosition = true;
         return;
     }
+    _inPosition = false;
     _direction = ( _positionSetpoint - _currentPosition ) >= 0; // compute direction given current postion and setpoint.
     if ( _timeSinceLastStep >= _delayTime ) {
         step();

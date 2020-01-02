@@ -2,5 +2,5 @@
     "board": "arduino:avr:mega",
     "configuration": "cpu=atmega2560",
     "sketch": "examples\\BoardLayout\\BoardLayoutExample.ino",
-    "port": "COM24"
+    "port": "COM15"
 }
