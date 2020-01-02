@@ -49,7 +49,7 @@ StepperController::StepperController ( unsigned short stepPin, unsigned short di
 void StepperController::setStepControlMode(StepControlMode mode) {
     if (!_microsteppingPinsSet)
     {
-        return;
+        // return;
     }
     
     _stepControlMode = mode;
@@ -181,6 +181,10 @@ void StepperController::invert() {
     _isInverted = !_isInverted;
 }
 
+void StepperController::reverse() {
+    _isInverted = true;
+}
+
 /**
  * Sets how many steps the motor must make to turn one revolution.
  * @param number of steps per revolution
@@ -247,8 +251,8 @@ unsigned long StepperController::rpmToMicros( float RPM ) {
  * @param number of rotations to convert
  * @return number of steps the motor needs to take to equate to approximate rotations.
  */
-int StepperController::rotationsToSteps( float rotations ) {
-    return (int) (rotations * _stepsPerRevolution);
+long long StepperController::rotationsToSteps( float rotations ) {
+    return (rotations * _stepsPerRevolution);
 }
 
 /**
@@ -308,7 +312,7 @@ void StepperController::setSleepOnDisable(bool sleep) {
  */
 void StepperController::enable() {
     _motorEnabled = true;
-    // digitalWrite(_sleepPin, HIGH);
+    digitalWrite(_sleepPin, HIGH);
 }
 
 /**
@@ -317,7 +321,7 @@ void StepperController::enable() {
 void StepperController::disable() {
     _motorEnabled = false;
     if(_sleepOnDisable) {
-        // digitalWrite(_sleepPin, LOW);
+        digitalWrite(_sleepPin, LOW);
     }
 }
 

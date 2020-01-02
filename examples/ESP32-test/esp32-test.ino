@@ -35,3 +35,6 @@ void loop() {
   dt = micros() - lastTime;
   
 }
+
+// #include <Arduino.h>
+// "sketch": "examples\\KiP_HPE\\KiP_HPE.ino",

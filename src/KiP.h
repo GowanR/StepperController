@@ -28,7 +28,7 @@ void configMotors() {
   m0.setSpeed(40);
   m0.enable();
   m1.enable();
-  m1.invert(); // add reversed function for many calls
+  m1.reverse(); // add reversed function for many calls
 }
 
 
@@ -48,6 +48,7 @@ double applyOffset(double degrees) {
   return degrees;
 }
 void turn(double degrees) {
+  configMotors();
   double radians = degreesToRadians(applyOffset(degrees));
   double rev = inchesToRPM(AXLE_RADIUS * radians);
   m0.setJog(rev);
@@ -78,6 +79,7 @@ void turnRight() {
   
 }
 void forward(double inches) {
+  configMotors();
   double rev = inchesToRPM(inches);
   m0.setJog(rev);
   m1.setJog(rev);

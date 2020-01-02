@@ -45,6 +45,7 @@ class StepperController {
         void setSlave(StepperController &motor);// sets the slave motor
         void clearSlave();                      // removes the slave/breaks slave motor free
         void invert();                          // inverts the direction of the motor
+        void reverse();                         // reverses the motor but keeps it reversed
         void setStepsPerRevolution( int steps );// sets the number of steps per revolution. Default is 200.
         int getMode();                         // returns the motor's current mode
         void setSleepOnDisable(bool sleep);    // This will make the motor sleep pin pull when the
@@ -65,14 +66,14 @@ class StepperController {
         unsigned short _stepPin;
         unsigned short _directionPin;
         unsigned short _sleepPin;
-        long _currentPosition;
-        long _lowerSoftStop;
-        long _upperSoftStop;
+        long long _currentPosition;
+        long long _lowerSoftStop;
+        long long _upperSoftStop;
         bool _direction;
         bool _inPosition;
         bool _sleepOnDisable; // this will make the motor sleep when the motor is disabled which will reduce heat and increase efficiency.
         float _currentSpeed;
-        float _positionSetpoint;
+        long double _positionSetpoint;
         bool _stepActive;
         int _stepsPerRevolution;             // number of steps per revoltion of the stepper motor. Typically 200.
         unsigned long _timeSinceLastStep;   // in microseconds
@@ -89,7 +90,7 @@ class StepperController {
         void updatePositionMode( unsigned long dt );
         void updateProfileMode( unsigned long dt );
         unsigned long rpmToMicros( float RPM );             // converts RPM into microsecond delays between stepping
-        int rotationsToSteps( float rotations );            // converts rotations to steps
+        long long rotationsToSteps( float rotations );            // converts rotations to steps
         bool motorInRange();                                // checks if motor will break out of soft stops directionaly
         bool getDirection();                                // returns the current direciton of the motor
         void updateMicroStepConfiguration();                // helper function for confiuguring the digital pins for micro stepping
