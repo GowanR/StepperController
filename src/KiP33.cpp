@@ -2,9 +2,10 @@
 
 KiP33::KiP33() {
     // The following microstepping pin configurations are for the KiP PCB Rev. 3.3.
-    motor0.configureMicroSteppingPins(10, 11, 12);
-    motor1.configureMicroSteppingPins(13, 53, 16);
-    motor2.configureMicroSteppingPins(17, 6, 7);
+    // TODO: Fix microstepping for non-A4988 drivers. (custom truth tables)
+    // motor0.configureMicroSteppingPins(10, 11, 12);
+    // motor1.configureMicroSteppingPins(13, 53, 16);
+    // motor2.configureMicroSteppingPins(17, 6, 7);
 }
 
 void KiP33::configureMicroStepAllMotors(int microstepsPerStep) {
