@@ -1,5 +1,6 @@
 # StepperController
-This is an Arduino Library for controlling stepper motors. Built for 2 pin stepper drivers. Tested on [A4988](https://www.pololu.com/product/1182) stepper driver chip.
+
+This is an Arduino library for working with 4 wire bipolar stepper motors. See the [Wiki](https://github.com/GowanR/StepperController/wiki) for documentation and reference. 
 
 
 See `./examples` for some simple examples of motor library functionality.
