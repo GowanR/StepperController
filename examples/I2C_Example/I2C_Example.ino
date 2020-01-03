@@ -1,24 +1,32 @@
 #include <Wire.h>
+#include <StepperController.h>
 
-const int ledPin = 13; // onboard LED
-static_assert(LOW == 0, "Expecting LOW to be 0");
+#define DIR 4
+#define STEP 3
+#define SLEEP 5
+
+unsigned long lastTime;
+unsigned long dt;
+
+StepperController motor0(STEP, DIR, SLEEP); // instantiate motor0 as a StepperController with the given pins 
 
 void setup() {
-  Wire.begin(0x8);                // join i2c bus with address #8
-  Wire.onReceive(receiveEvent); // register event
-  pinMode(ledPin, OUTPUT);
-  digitalWrite(ledPin, LOW); // turn it off
+  Wire.begin(0x8); // connect to i2c bus with address 0x8.
+  Wire.onReceive(receiveEvent); // register receive event function
+  motor0.setSpeedMode(); // set the motor to operate in position mode.
+  motor0.setSpeed(0); // set the speed of the motor to zero so the rotor is stationary.
 }
 
 void loop() {
-  delay(100);
+  lastTime = micros();
+  motor0.update(dt); // update StepperController instance each loop
+  // other arduino code goes here
+  dt = micros() - lastTime;
 }
 
-// function that executes whenever data is received from master
-// this function is registered as an event, see setup()
 void receiveEvent(int howMany) {
   while (Wire.available()) { // loop through all but the last
     char c = Wire.read(); // receive byte as a character
-    digitalWrite(ledPin, c);
+    motor0.setSpeed((int)c); // set the motor speed to char cast as int
   }
 }

@@ -1,26 +1,24 @@
 #include <StepperController.h>
-#include <Arduino.h>
 
-// configure the pins connected
+
 #define DIR 4
 #define STEP 3
+#define SLEEP 5
+
 unsigned long lastTime;
 unsigned long dt;
 
-
-StepperController motor0(STEP, DIR);
+StepperController motor0(STEP, DIR, SLEEP); // instantiate motor0 as a StepperController with the given pins 
 
 void setup() {
-    lastTime = micros();
-    motor0.setSpeedMode();  // set the motor to speed mode
-    motor0.setSpeed( 200 ); // tell the motor to run clockwise at 200 RPM
+    motor0.setSpeedMode(); // set the motor to operate in position mode.
+    motor0.setSpeed(100); // set the speed of the motor to 100 RPM in the positive direction.
 }
 
 
 void loop() {
   lastTime = micros();
-  motor0.update(dt);
-
-  // other arduino code
+  motor0.update(dt); // update StepperController instance each loop
+  // other arduino code goes here
   dt = micros() - lastTime;
 }
