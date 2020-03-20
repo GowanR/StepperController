@@ -4,14 +4,7 @@
 
 #include "StepperController.h"
 
-/**
- * MICROSTEP_CONFIG
- * | STEP MODE | VALUE |
- * |    FULL   |   1   |
- * |  QUARTER  |   4   |
- * | SIXTEENTH |   16  |
- */
-#define MICROSTEP_CONFIG 1
+#define STEPS_PER_REVOLUTION 200 
 /**
  * Constructs the motor controller.
  * @param the Arduino pin used for step control.
@@ -19,7 +12,6 @@
  */
 StepperController::StepperController ( unsigned short stepPin, unsigned short directionPin, unsigned short sleepPin ) {
     _inPosition = false;
-    _microsteppingPinsSet = false;       // the microstepping pins are not configured by default.
     _directionPin = directionPin;
     _stepPin = stepPin;
     _sleepPin = sleepPin;
@@ -27,13 +19,14 @@ StepperController::StepperController ( unsigned short stepPin, unsigned short di
     _microstepConversion = 1;             // represents full step
     _mode = jog;                          // default mode is jog
     _currentPosition = 0;                 // starting position of motor is 0 steps, this stacks half steps
+    _currentPositionRevolutions = 0;
     _motorEnabled = true;                 // true when the motor can move
     _stepActive = false;                  // keeps track of if the coil powered or not
     _upperSoftStop = 0;                   // set upper soft stop to 0
     _lowerSoftStop = 0;                   // set lower soft stop to 0
     _positionSetpoint = 0;                // the default position setpoint is zero
     _isInverted = false;                  // the motor is not inverted by default
-    _stepsPerRevolution = 200 * _microstepConversion;
+    _stepsPerRevolution = STEPS_PER_REVOLUTION * _microstepConversion;
     _sleepOnDisable = true;
     pinMode( _stepPin, OUTPUT );
     pinMode( _directionPin, OUTPUT );
@@ -46,16 +39,12 @@ StepperController::StepperController ( unsigned short stepPin, unsigned short di
  * This method changes the microstepping mode for the motor.
  * ![WARN]: this source is currently voilitile in that it will reset motor position when microstepping configuration is altered.
  */
-void StepperController::setStepControlMode(StepControlMode mode) {
-    if (!_microsteppingPinsSet)
-    {
-        // return;
-    }
-    
+void StepperController::setStepControlMode(StepControlMode mode) {    
     _stepControlMode = mode;
     _microstepConversion = mode;
-    _stepsPerRevolution = 200 * _microstepConversion; 
+    _stepsPerRevolution = STEPS_PER_REVOLUTION * mode;
     _currentPosition = 0;
+    // _currentPosition = (long long)(_currentPositionRevolutions * _stepsPerRevolution);
     updateMicroStepConfiguration();
 }
 
@@ -63,7 +52,6 @@ void StepperController::configureMicroSteppingPins( unsigned short MS1, unsigned
     _ms1 = MS1;
     _ms2 = MS2;
     _ms3 = MS3;
-    _microsteppingPinsSet = true;
     pinMode(_ms1, OUTPUT);
     pinMode(_ms2, OUTPUT);
     pinMode(_ms3, OUTPUT);
@@ -84,36 +72,36 @@ void StepperController::configureMicroSteppingPins( unsigned short MS1, unsigned
  */
 
 void StepperController::updateMicroStepConfiguration() {
-    if (!_microsteppingPinsSet)
-    {
-        return;
-    }
-    
     switch (_stepControlMode) {
-        FULL_STEP: // 0 0 0
+        case FULL_STEP: // 0 0 0
             digitalWrite(_ms1, LOW);
             digitalWrite(_ms2, LOW);
             digitalWrite(_ms3, LOW);
         break;
-        HALF_STEP: // 1 0 0
+        case HALF_STEP: // 1 0 0
             digitalWrite(_ms1, HIGH);
             digitalWrite(_ms2, LOW);
             digitalWrite(_ms3, LOW);
         break;
-        QUARTER_STEP: // 0 1 0
+        case QUARTER_STEP: // 0 1 0
             digitalWrite(_ms1, LOW);
             digitalWrite(_ms2, HIGH);
             digitalWrite(_ms3, LOW);
         break;
-        EIGHTH_STEP: // 1 1 0
+        case EIGHTH_STEP: // 1 1 0
             digitalWrite(_ms1, HIGH);
             digitalWrite(_ms2, HIGH);
             digitalWrite(_ms3, LOW);
         break;
-        SIXTEENTH_STEP: // 1 1 1
+        case SIXTEENTH_STEP: // 1 1 1
             digitalWrite(_ms1, HIGH);
             digitalWrite(_ms2, HIGH);
             digitalWrite(_ms3, HIGH);
+        break;
+        default: // default will result in pulling all microstep configuration pins low
+            digitalWrite(_ms1, LOW);
+            digitalWrite(_ms2, LOW);
+            digitalWrite(_ms3, LOW);
         break;
     }
 }
@@ -222,19 +210,28 @@ void StepperController::clearSlave() {
 }
 
 /**
- * Stepper motor will change alternate the current of each coil resulting in "half" of a step.
- * If this is called twice, the stepper motor will have turned a step.
+ * Typical stepper drivers will step on the leading edge of the square wave.
  */ 
 void StepperController::step() {
-    digitalWrite( _directionPin, getDirection() ? HIGH : LOW );
-    digitalWrite( _stepPin, _stepActive ? LOW : HIGH );
-    _stepActive = !_stepActive;
-    _timeSinceLastStep = 0;
-    _direction ? _currentPosition++ : _currentPosition--;
 
+    digitalWrite( _directionPin, getDirection() ? HIGH : LOW ); // if the set direction pin high or low based on stored direction.
+    digitalWrite( _stepPin, HIGH );
+    _stepActive = true;
+    _timeSinceLastStep = 0;
+    _direction ? _currentPosition++ : _currentPosition--; // if direction true, conventionally clockwise, then increment the current position. if negative, decrement. 
+    
+    // tracks position in revolutions
+    if (_direction) {
+        _currentPositionRevolutions += 1.f/((double)_stepsPerRevolution);
+    } else {
+        _currentPositionRevolutions -= 1.f/((double)_stepsPerRevolution);
+    }
+    
     if ( _hasSlave ) {
         _slave->step();
     }
+    digitalWrite( _stepPin, LOW ); // lower the step pin
+    _stepActive = false;
 }
 
 /**
@@ -260,7 +257,7 @@ long long StepperController::rotationsToSteps( float rotations ) {
  * @returns the current position of the motor in revolutions
  */
 float StepperController::getPosition() {
-    return _currentPosition / (2.f * _stepsPerRevolution);
+    return _currentPosition / (_stepsPerRevolution);
 }
 
 // long StepperController::getRawPosition() {
@@ -293,7 +290,8 @@ void StepperController::setRange( float min, float max ) {
  * @param the absolute 'goal' revolutions value.
  */
 void StepperController::setPosition( float setpoint ) {
-    _positionSetpoint = rotationsToSteps(setpoint) * 2;
+    _positionSetpoint = rotationsToSteps(setpoint);
+    _revPositionSetpoint = setpoint;
 }
 
 /**
@@ -301,6 +299,7 @@ void StepperController::setPosition( float setpoint ) {
  */
 void StepperController::tare() {
     _currentPosition = 0;
+    _currentPositionRevolutions = 0;
 }
 
 void StepperController::setSleepOnDisable(bool sleep) {
@@ -364,7 +363,7 @@ void StepperController::setProfileMode(){
  * @param number of roations to move relative to current motor position.
  */
 void StepperController::setJog( float rotations ) {
-    _positionSetpoint = _currentPosition + ( rotationsToSteps( rotations ) * 2 );
+    _positionSetpoint = _currentPosition + ( rotationsToSteps( rotations ));
 }
 
 /**
@@ -373,10 +372,10 @@ void StepperController::setJog( float rotations ) {
  */
 bool StepperController::motorInRange(){
     if ( _upperSoftStop != 0 && _lowerSoftStop != 0 ) {
-        if ( _currentPosition / 2 >= _upperSoftStop && _direction ) {
+        if ( _currentPosition >= _upperSoftStop && _direction ) {
             return false;
         }
-        if ( _currentPosition / 2 <= _lowerSoftStop && !_direction ) {
+        if ( _currentPosition <= _lowerSoftStop && !_direction ) {
             return false;
         }
     }
@@ -391,7 +390,7 @@ void StepperController::updateSpeedMode( unsigned long dt ) {
     if ( !motorInRange() ) {
         return;
     }
-    unsigned long _delayTime = rpmToMicros(_currentSpeed) / 2;
+    unsigned long _delayTime = rpmToMicros(_currentSpeed);
     if ( _timeSinceLastStep >= _delayTime ) {
         step();
     }
@@ -401,8 +400,17 @@ void StepperController::updateSpeedMode( unsigned long dt ) {
 float StepperController::getPositionSetpoint() {
     return _positionSetpoint;
 }
+
+float StepperController::getPositionSetpointRevolutions(){
+    return _revPositionSetpoint;
+}
+
 bool StepperController::isInPosition(){
     return _inPosition;
+}
+
+void StepperController::configureDriverCarrier(DriverCarrierBoard boardType) {
+    _carrierBoardType = boardType;
 }
 
 /**
@@ -413,7 +421,7 @@ void StepperController::updatePositionMode( unsigned long dt ) {
     if ( !motorInRange() ) {
         return;
     }
-    unsigned long _delayTime = rpmToMicros(_currentSpeed) / 2;
+    unsigned long _delayTime = rpmToMicros(_currentSpeed);
     if ( _currentPosition == _positionSetpoint ) {
         _inPosition = true;
         return;

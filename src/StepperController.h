@@ -15,9 +15,23 @@ enum StepControlMode { // definition of possible control modes. default is full 
     HALF_STEP = 2,
     QUARTER_STEP = 4,
     EIGHTH_STEP = 8,
-    SIXTEENTH_STEP = 16
+    SIXTEENTH_STEP = 16,
+    STEP_32 = 32,
+    STEP_128 = 128,
+    STEP_256 = 256
 };
-
+enum DriverCarrierBoard {
+    A4988,
+    DRV8825,
+    DRV8834,
+    DRV8880,
+    MP6500_POT_CC,
+    MP6500_DIGITAL_CC,
+    TB67S279FTG,
+    TB67S249FTG,
+    STSPIN820,
+    STSPIN220
+};
 class StepperController {
     public:
         StepperController( unsigned short stepPin, unsigned short directionPin, unsigned short sleepPin );
@@ -51,17 +65,19 @@ class StepperController {
         void setSleepOnDisable(bool sleep);    // This will make the motor sleep pin pull when the
         void setStepControlMode(StepControlMode mode); // sets the microstepping control mode for the given stepper motor.
         float getPositionSetpoint();           // returns the position that the motor is homing to if it's in potision mode.
+        float getPositionSetpointRevolutions();
         bool isInPosition();                   // checks if motor is in position
+        void configureDriverCarrier(DriverCarrierBoard boardType);
         // float getTrajectory();
         ~StepperController();
     
     private:
-        bool _microsteppingPinsSet;             // flag keeps track of if the microstepping pins have been configured.
         unsigned short _ms1, _ms2, _ms3;        // microstepping pins
         bool _isInverted;                       // switches the direction of the motor for all opetations.
         bool _hasSlave;                         // true if the motor has a follower "slave" motor.
         StepperController *_slave;              // motor that will follow this motor.
         StepControlMode _stepControlMode; // mode of microstepping
+        DriverCarrierBoard _carrierBoardType;
         unsigned short _microstepConversion;
         unsigned short _stepPin;
         unsigned short _directionPin;
@@ -69,11 +85,13 @@ class StepperController {
         long long _currentPosition;
         long long _lowerSoftStop;
         long long _upperSoftStop;
+        long double _currentPositionRevolutions; // tracks the current position of the motor in revolutions
         bool _direction;
         bool _inPosition;
         bool _sleepOnDisable; // this will make the motor sleep when the motor is disabled which will reduce heat and increase efficiency.
         float _currentSpeed;
         long double _positionSetpoint;
+        float _revPositionSetpoint;
         bool _stepActive;
         int _stepsPerRevolution;             // number of steps per revoltion of the stepper motor. Typically 200.
         unsigned long _timeSinceLastStep;   // in microseconds
