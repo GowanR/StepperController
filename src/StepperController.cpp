@@ -2,7 +2,14 @@
   StepperController.cpp - Library for controlling multiple A4988 chips concurrently with dynamic motion profiles.
 */
 
+#include <Arduino.h>
 #include "StepperController.h"
+#include "KiP33.h"
+#define HIGH 1
+#define LOW 0
+#define INPUT 1
+#define OUTPUT 0
+#define KIP33
 
 #define STEPS_PER_REVOLUTION 200 
 /**
@@ -10,13 +17,11 @@
  * @param the Arduino pin used for step control.
  * @param the Arduino pin used for direction control.
  */
-StepperController::StepperController ( unsigned short stepPin, unsigned short directionPin, unsigned short sleepPin ) {
+StepperController::StepperController(unsigned int motorID) {
+    _motorID = motorID;
+    _carrierBoardType = A4988;
     _inPosition = false;
-    _directionPin = directionPin;
-    _stepPin = stepPin;
-    _sleepPin = sleepPin;
     _stepControlMode = FULL_STEP;
-    _microstepConversion = 1;             // represents full step
     _mode = jog;                          // default mode is jog
     _currentPosition = 0;                 // starting position of motor is 0 steps, this stacks half steps
     _currentPositionRevolutions = 0;
@@ -26,11 +31,49 @@ StepperController::StepperController ( unsigned short stepPin, unsigned short di
     _lowerSoftStop = 0;                   // set lower soft stop to 0
     _positionSetpoint = 0;                // the default position setpoint is zero
     _isInverted = false;                  // the motor is not inverted by default
-    _stepsPerRevolution = STEPS_PER_REVOLUTION * _microstepConversion;
+    _stepsPerRevolution = STEPS_PER_REVOLUTION * _stepControlMode;
     _sleepOnDisable = true;
-    pinMode( _stepPin, OUTPUT );
-    pinMode( _directionPin, OUTPUT );
-    pinMode( _sleepPin, OUTPUT );
+
+    /////// Configure Step, Direction, and Sleep pins for fast writes ///////
+    #ifdef KIP33
+        if(motorID == 0) {
+            // Stepper 0 Core Pin Configuration
+            pinModeFast( STEPPER_0_STEP, OUTPUT );
+            pinModeFast( STEPPER_0_DIR, OUTPUT );
+            pinModeFast( STEPPER_0_SLEEP, OUTPUT );
+            // Stepper 0 Microstepping Pin Configuration
+            pinModeFast( STEPPER_0_MS1, OUTPUT );
+            pinModeFast( STEPPER_0_MS2, OUTPUT );
+            pinModeFast( STEPPER_0_MS3, OUTPUT );
+        }
+    #endif
+
+    #if defined(KIP33)
+        if(motorID == 1) {
+            // Stepper 1 Core Pin Configuration
+            pinModeFast( STEPPER_1_STEP, OUTPUT );
+            pinModeFast( STEPPER_1_DIR, OUTPUT );
+            pinModeFast( STEPPER_1_SLEEP, OUTPUT );
+            // Stepper 1 Microstepping Pin Configuration
+            pinModeFast( STEPPER_1_MS1, OUTPUT );
+            pinModeFast( STEPPER_1_MS2, OUTPUT );
+            pinModeFast( STEPPER_1_MS3, OUTPUT );
+        }
+    #endif
+
+    #if defined(KIP33)
+        if(motorID == 2) {
+            // Stepper 2 Core Pin Configuration
+            pinModeFast( STEPPER_2_STEP, OUTPUT );
+            pinModeFast( STEPPER_2_DIR, OUTPUT );
+            pinModeFast( STEPPER_2_SLEEP, OUTPUT );
+            // Stepper 2 Microstepping Pin Configuration
+            pinModeFast( STEPPER_2_MS1, OUTPUT );
+            pinModeFast( STEPPER_2_MS2, OUTPUT );
+            pinModeFast( STEPPER_2_MS3, OUTPUT );
+        }
+    #endif
+    
 }
 
 
@@ -41,108 +84,279 @@ StepperController::StepperController ( unsigned short stepPin, unsigned short di
  */
 void StepperController::setStepControlMode(StepControlMode mode) {    
     _stepControlMode = mode;
-    _microstepConversion = mode;
     _stepsPerRevolution = STEPS_PER_REVOLUTION * mode;
     _currentPosition = 0;
     // _currentPosition = (long long)(_currentPositionRevolutions * _stepsPerRevolution);
     updateMicroStepConfiguration();
 }
 
-void StepperController::configureMicroSteppingPins( unsigned short MS1, unsigned short MS2, unsigned short MS3 ) {
-    _ms1 = MS1;
-    _ms2 = MS2;
-    _ms3 = MS3;
-    pinMode(_ms1, OUTPUT);
-    pinMode(_ms2, OUTPUT);
-    pinMode(_ms3, OUTPUT);
-}
 
-
-/** 
- *  Microstepping configuration for A4988 driver.
- *  =============================
- * | STEP TYPE | MS1 | MS2 | MS3 |
- * |   FULL    |  L  |  L  |  L  |
- * |   HALF    |  H  |  L  |  L  |
- * |  QUARTER  |  L  |  H  |  L  |
- * |  EIGHTH   |  H  |  H  |  L  |
- * | SIXTEETH  |  H  |  H  |  H  |
- *  =============================
- * 
- */
-
+// TODO: update microstepping for new macros
 void StepperController::updateMicroStepConfiguration() {
-    switch (_stepControlMode) {
-        case FULL_STEP: // 0 0 0
-            digitalWrite(_ms1, LOW);
-            digitalWrite(_ms2, LOW);
-            digitalWrite(_ms3, LOW);
+    
+    switch(_carrierBoardType) {
+        case A4988:
+            // handleMicrostepA4988();
         break;
-        case HALF_STEP: // 1 0 0
-            digitalWrite(_ms1, HIGH);
-            digitalWrite(_ms2, LOW);
-            digitalWrite(_ms3, LOW);
+
+        case DRV8825:
+            // handleMicrostepDRV8825();
         break;
-        case QUARTER_STEP: // 0 1 0
-            digitalWrite(_ms1, LOW);
-            digitalWrite(_ms2, HIGH);
-            digitalWrite(_ms3, LOW);
+
+        case DRV8834:
         break;
-        case EIGHTH_STEP: // 1 1 0
-            digitalWrite(_ms1, HIGH);
-            digitalWrite(_ms2, HIGH);
-            digitalWrite(_ms3, LOW);
+        
+        case DRV8880:
         break;
-        case SIXTEENTH_STEP: // 1 1 1
-            digitalWrite(_ms1, HIGH);
-            digitalWrite(_ms2, HIGH);
-            digitalWrite(_ms3, HIGH);
+        
+        case MP6500_POT_CC:
         break;
-        default: // default will result in pulling all microstep configuration pins low
-            digitalWrite(_ms1, LOW);
-            digitalWrite(_ms2, LOW);
-            digitalWrite(_ms3, LOW);
+        
+        case MP6500_DIGITAL_CC:
+        break;
+        
+        case TB67S279FTG:
+        break;
+        
+        case TB67S249FTG:
+        break;
+        
+        case STSPIN820:
+        break;
+        
+        case STSPIN220:
         break;
     }
 }
+// void StepperController::handleMicrostepA4988() {
+//     #ifdef KIP33
+//     switch(_stepControlMode) {
+//         case FULL_STEP:
+//             switch(_motorID){
+//                 case 0:
+//                     digitalWriteFast(STEPPER_0_MS1, ((int)(A4988_1&0b100) > 0));
+//                     digitalWriteFast(STEPPER_0_MS2, ((int)(A4988_1&0b010) > 0));
+//                     digitalWriteFast(STEPPER_0_MS3, ((int)(A4988_1&0b001) > 0));
+//                 break;
+//                 case 1:
+//                     digitalWriteFast(STEPPER_1_MS1, ((int)(A4988_1&0b100) > 0));
+//                     digitalWriteFast(STEPPER_1_MS2, ((int)(A4988_1&0b010) > 0));
+//                     digitalWriteFast(STEPPER_1_MS3, ((int)(A4988_1&0b001) > 0));
+//                 break;
+//                 case 2:
+//                     digitalWriteFast(STEPPER_2_MS1, ((int)(A4988_1&0b100) > 0));
+//                     digitalWriteFast(STEPPER_2_MS2, ((int)(A4988_1&0b010) > 0));
+//                     digitalWriteFast(STEPPER_2_MS3, ((int)(A4988_1&0b001) > 0));
+//                 break;
+//             }
+//         break;
+//         case HALF_STEP:
+//             switch(_motorID){
+//                 case 0:
+//                     digitalWriteFast(STEPPER_0_MS1, ((int)(A4988_2&0b100) > 0));
+//                     digitalWriteFast(STEPPER_0_MS2, ((int)(A4988_2&0b010) > 0));
+//                     digitalWriteFast(STEPPER_0_MS3, ((int)(A4988_2&0b001) > 0));
+//                 break;
+//                 case 1:
+//                     digitalWriteFast(STEPPER_1_MS1, ((int)(A4988_2&0b100) > 0));
+//                     digitalWriteFast(STEPPER_1_MS2, ((int)(A4988_2&0b010) > 0));
+//                     digitalWriteFast(STEPPER_1_MS3, ((int)(A4988_2&0b001) > 0));
+//                 break;
+//                 case 2:
+//                     digitalWriteFast(STEPPER_2_MS1, ((int)(A4988_2&0b100) > 0));
+//                     digitalWriteFast(STEPPER_2_MS2, ((int)(A4988_2&0b010) > 0));
+//                     digitalWriteFast(STEPPER_2_MS3, ((int)(A4988_2&0b001) > 0));
+//                 break;
+//             }
+//         break;
+//         case QUARTER_STEP:
+//             switch(_motorID){
+//                 case 0:
+//                     digitalWriteFast(STEPPER_0_MS1, ((int)(A4988_4&0b100) > 0));
+//                     digitalWriteFast(STEPPER_0_MS2, ((int)(A4988_4&0b010) > 0));
+//                     digitalWriteFast(STEPPER_0_MS3, ((int)(A4988_4&0b001) > 0));
+//                 break;
+//                 case 1:
+//                     digitalWriteFast(STEPPER_1_MS1, ((int)(A4988_4&0b100) > 0));
+//                     digitalWriteFast(STEPPER_1_MS2, ((int)(A4988_4&0b010) > 0));
+//                     digitalWriteFast(STEPPER_1_MS3, ((int)(A4988_4&0b001) > 0));
+//                 break;
+//                 case 2:
+//                     digitalWriteFast(STEPPER_2_MS1, ((int)(A4988_4&0b100) > 0));
+//                     digitalWriteFast(STEPPER_2_MS2, ((int)(A4988_4&0b010) > 0));
+//                     digitalWriteFast(STEPPER_2_MS3, ((int)(A4988_4&0b001) > 0));
+//                 break;
+//             }
+//         break;
+//         case EIGHTH_STEP:
+//             switch(_motorID){
+//                 case 0:
+//                     digitalWriteFast(STEPPER_0_MS1, ((int)(A4988_8&0b100) > 0));
+//                     digitalWriteFast(STEPPER_0_MS2, ((int)(A4988_8&0b010) > 0));
+//                     digitalWriteFast(STEPPER_0_MS3, ((int)(A4988_8&0b001) > 0));
+//                 break;
+//                 case 1:
+//                     digitalWriteFast(STEPPER_1_MS1, ((int)(A4988_8&0b100) > 0));
+//                     digitalWriteFast(STEPPER_1_MS2, ((int)(A4988_8&0b010) > 0));
+//                     digitalWriteFast(STEPPER_1_MS3, ((int)(A4988_8&0b001) > 0));
+//                 break;
+//                 case 2:
+//                     digitalWriteFast(STEPPER_2_MS1, ((int)(A4988_8&0b100) > 0));
+//                     digitalWriteFast(STEPPER_2_MS2, ((int)(A4988_8&0b010) > 0));
+//                     digitalWriteFast(STEPPER_2_MS3, ((int)(A4988_8&0b001) > 0));
+//                 break;
+//             }
+//         break;
+//         case SIXTEENTH_STEP:
+//         switch(_motorID){
+//                 case 0:
+//                     digitalWriteFast(STEPPER_0_MS1, ((int)(A4988_16&0b100) > 0));
+//                     digitalWriteFast(STEPPER_0_MS2, ((int)(A4988_16&0b010) > 0));
+//                     digitalWriteFast(STEPPER_0_MS3, ((int)(A4988_16&0b001) > 0));
+//                 break;
+//                 case 1:
+//                     digitalWriteFast(STEPPER_1_MS1, ((int)(A4988_16&0b100) > 0));
+//                     digitalWriteFast(STEPPER_1_MS2, ((int)(A4988_16&0b010) > 0));
+//                     digitalWriteFast(STEPPER_1_MS3, ((int)(A4988_16&0b001) > 0));
+//                 break;
+//                 case 2:
+//                     digitalWriteFast(STEPPER_2_MS1, ((int)(A4988_16&0b100) > 0));
+//                     digitalWriteFast(STEPPER_2_MS2, ((int)(A4988_16&0b010) > 0));
+//                     digitalWriteFast(STEPPER_2_MS3, ((int)(A4988_16&0b001) > 0));
+//                 break;
+//             }
+//         break;
+//     }
+//     #endif
+// }
 
+// void StepperController::handleMicrostepDRV8825() {
+//     #ifdef KIP33
+//     switch(_stepControlMode) {
+//         case FULL_STEP:
+//             switch(_motorID){
+//                 case 0:
+//                     digitalWriteFast(STEPPER_0_MS1, ((int)(DRV8825_1&0b100) > 0));
+//                     digitalWriteFast(STEPPER_0_MS2, ((int)(DRV8825_1&0b010) > 0));
+//                     digitalWriteFast(STEPPER_0_MS3, ((int)(DRV8825_1&0b001) > 0));
+//                 break;
+//                 case 1:
+//                     digitalWriteFast(STEPPER_1_MS1, ((int)(DRV8825_1&0b100) > 0));
+//                     digitalWriteFast(STEPPER_1_MS2, ((int)(DRV8825_1&0b010) > 0));
+//                     digitalWriteFast(STEPPER_1_MS3, ((int)(DRV8825_1&0b001) > 0));
+//                 break;
+//                 case 2:
+//                     digitalWriteFast(STEPPER_2_MS1, ((int)(DRV8825_1&0b100) > 0));
+//                     digitalWriteFast(STEPPER_2_MS2, ((int)(DRV8825_1&0b010) > 0));
+//                     digitalWriteFast(STEPPER_2_MS3, ((int)(DRV8825_1&0b001) > 0));
+//                 break;
+//             }
+//         break;
+//         case HALF_STEP:
+//             switch(_motorID){
+//                 case 0:
+//                     digitalWriteFast(STEPPER_0_MS1, ((int)(DRV8825_2&0b100) > 0));
+//                     digitalWriteFast(STEPPER_0_MS2, ((int)(DRV8825_2&0b010) > 0));
+//                     digitalWriteFast(STEPPER_0_MS3, ((int)(DRV8825_2&0b001) > 0));
+//                 break;
+//                 case 1:
+//                     digitalWriteFast(STEPPER_1_MS1, ((int)(DRV8825_2&0b100) > 0));
+//                     digitalWriteFast(STEPPER_1_MS2, ((int)(DRV8825_2&0b010) > 0));
+//                     digitalWriteFast(STEPPER_1_MS3, ((int)(DRV8825_2&0b001) > 0));
+//                 break;
+//                 case 2:
+//                     digitalWriteFast(STEPPER_2_MS1, ((int)(DRV8825_2&0b100) > 0));
+//                     digitalWriteFast(STEPPER_2_MS2, ((int)(DRV8825_2&0b010) > 0));
+//                     digitalWriteFast(STEPPER_2_MS3, ((int)(DRV8825_2&0b001) > 0));
+//                 break;
+//             }
+//         break;
+//         case QUARTER_STEP:
+//             switch(_motorID){
+//                 case 0:
+//                     digitalWriteFast(STEPPER_0_MS1, ((int)(DRV8825_4&0b100) > 0));
+//                     digitalWriteFast(STEPPER_0_MS2, ((int)(DRV8825_4&0b010) > 0));
+//                     digitalWriteFast(STEPPER_0_MS3, ((int)(DRV8825_4&0b001) > 0));
+//                 break;
+//                 case 1:
+//                     digitalWriteFast(STEPPER_1_MS1, ((int)(DRV8825_4&0b100) > 0));
+//                     digitalWriteFast(STEPPER_1_MS2, ((int)(DRV8825_4&0b010) > 0));
+//                     digitalWriteFast(STEPPER_1_MS3, ((int)(DRV8825_4&0b001) > 0));
+//                 break;
+//                 case 2:
+//                     digitalWriteFast(STEPPER_2_MS1, ((int)(DRV8825_4&0b100) > 0));
+//                     digitalWriteFast(STEPPER_2_MS2, ((int)(DRV8825_4&0b010) > 0));
+//                     digitalWriteFast(STEPPER_2_MS3, ((int)(DRV8825_4&0b001) > 0));
+//                 break;
+//             }
+//         break;
+//         case EIGHTH_STEP:
+//             switch(_motorID){
+//                 case 0:
+//                     digitalWriteFast(STEPPER_0_MS1, ((int)(DRV8825_8&0b100) > 0));
+//                     digitalWriteFast(STEPPER_0_MS2, ((int)(DRV8825_8&0b010) > 0));
+//                     digitalWriteFast(STEPPER_0_MS3, ((int)(DRV8825_8&0b001) > 0));
+//                 break;
+//                 case 1:
+//                     digitalWriteFast(STEPPER_1_MS1, ((int)(DRV8825_8&0b100) > 0));
+//                     digitalWriteFast(STEPPER_1_MS2, ((int)(DRV8825_8&0b010) > 0));
+//                     digitalWriteFast(STEPPER_1_MS3, ((int)(DRV8825_8&0b001) > 0));
+//                 break;
+//                 case 2:
+//                     digitalWriteFast(STEPPER_2_MS1, ((int)(DRV8825_8&0b100) > 0));
+//                     digitalWriteFast(STEPPER_2_MS2, ((int)(DRV8825_8&0b010) > 0));
+//                     digitalWriteFast(STEPPER_2_MS3, ((int)(DRV8825_8&0b001) > 0));
+//                 break;
+//             }
+//         break;
+//         case SIXTEENTH_STEP:
+//             switch(_motorID){
+//                 case 0:
+//                     digitalWriteFast(STEPPER_0_MS1, ((int)(DRV8825_16&0b100) > 0));
+//                     digitalWriteFast(STEPPER_0_MS2, ((int)(DRV8825_16&0b010) > 0));
+//                     digitalWriteFast(STEPPER_0_MS3, ((int)(DRV8825_16&0b001) > 0));
+//                 break;
+//                 case 1:
+//                     digitalWriteFast(STEPPER_1_MS1, ((int)(DRV8825_16&0b100) > 0));
+//                     digitalWriteFast(STEPPER_1_MS2, ((int)(DRV8825_16&0b010) > 0));
+//                     digitalWriteFast(STEPPER_1_MS3, ((int)(DRV8825_16&0b001) > 0));
+//                 break;
+//                 case 2:
+//                     digitalWriteFast(STEPPER_2_MS1, ((int)(DRV8825_16&0b100) > 0));
+//                     digitalWriteFast(STEPPER_2_MS2, ((int)(DRV8825_16&0b010) > 0));
+//                     digitalWriteFast(STEPPER_2_MS3, ((int)(DRV8825_16&0b001) > 0));
+//                 break;
+//             }
+//         break;
+//         case STEP_32:
+//             switch(_motorID){
+//                 case 0:
+//                     digitalWriteFast(STEPPER_0_MS1, ((int)(DRV8825_32&0b100) > 0));
+//                     digitalWriteFast(STEPPER_0_MS2, ((int)(DRV8825_32&0b010) > 0));
+//                     digitalWriteFast(STEPPER_0_MS3, ((int)(DRV8825_32&0b001) > 0));
+//                 break;
+//                 case 1:
+//                     digitalWriteFast(STEPPER_1_MS1, ((int)(DRV8825_32&0b100) > 0));
+//                     digitalWriteFast(STEPPER_1_MS2, ((int)(DRV8825_32&0b010) > 0));
+//                     digitalWriteFast(STEPPER_1_MS3, ((int)(DRV8825_32&0b001) > 0));
+//                 break;
+//                 case 2:
+//                     digitalWriteFast(STEPPER_2_MS1, ((int)(DRV8825_32&0b100) > 0));
+//                     digitalWriteFast(STEPPER_2_MS2, ((int)(DRV8825_32&0b010) > 0));
+//                     digitalWriteFast(STEPPER_2_MS3, ((int)(DRV8825_32&0b001) > 0));
+//                 break;
+//             }
+//         break;
+//     }
+//     #endif
+// }
 /**
  * Converts seconds into microseconds.
  * @param seconds to convert
  */
-unsigned long StepperController::secondsToMicros( float seconds ) {
+unsigned long StepperController::secondsToMicros( double seconds ) {
     return (unsigned long) (seconds * 1000000.f);
 }
-
-/**
- * Generates a linked list definition of the motionprofile defined in the arrays.
- * Will return a node with all zeros if the arrays aren't of equal size.
- * @param array (of length n) of position values
- * @param array (of length n) of correlating time stamps to the position values 
- */
-// static ProfileNode* StepperController::generateProfile( float pos[], float timestamp[] ) {
-//     size_t posSize = sizeof( pos ) / sizeof( pos[0] );
-//     size_t timeSize = sizeof( timestamp ) / sizeof( timestamp[0] );
-//     if ( posSize == timeSize ) {
-//         struct ProfileNode badNode {
-//             .position = 0,
-//             .timestamp = 0
-//         };
-//         return badNode;
-//     } 
-//     struct ProfileNode *head;
-//     head = malloc( sizeof( struct ProfileNode) );
-//     struct ProfileNode *next = &head;
-//     struct ProfileNode *now = malloc( sizeof( struct ProfileNode ) );
-//     for ( unsigned short i = 0; i < (unsigned short)posSize; i++ ) {
-//         next->position = pos[i];
-//         next->timestamp = secondsToMicros( timestamp[i] );
-//         next->nextNode = now;
-        
-//         next = now;
-//     }
-//     return head;
-// }
 
 /**
  * Gets the current mode of the motor.
@@ -158,12 +372,12 @@ int StepperController::getMode() {
     return (int) _mode;
 }
 
-float StepperController::getSpeed() {
+double StepperController::getSpeed() {
     return _currentSpeed;
 }
 
 /**
- * Inverts the motor direciton. Toggles the default direction for sign.
+ * Inverts the motor direction. Toggles the default direction for sign.
  */
 void StepperController::invert() {
     _isInverted = !_isInverted;
@@ -214,14 +428,53 @@ void StepperController::clearSlave() {
  */ 
 void StepperController::step() {
 
-    digitalWrite( _directionPin, getDirection() ? HIGH : LOW ); // if the set direction pin high or low based on stored direction.
-    digitalWrite( _stepPin, HIGH );
+    if (getDirection()) {
+        #if defined(KIP33) && (defined(STEPPER_0_DIR) || defined(STEPPER_1_DIR) || defined(STEPPER_2_DIR))
+        switch(_motorID) {
+            case 0: 
+            digitalWriteFast( STEPPER_0_DIR, HIGH);
+            // digitalWrite( STEPPER_0_DIR, HIGH);
+            break;
+            case 1: digitalWriteFast( STEPPER_1_DIR, HIGH);
+            break;
+            case 2: digitalWriteFast( STEPPER_2_DIR, HIGH);
+            break;
+        }
+        #endif
+        
+    } else {
+        #if defined(KIP33) && (defined(STEPPER_0_DIR) || defined(STEPPER_1_DIR) || defined(STEPPER_2_DIR))
+        switch(_motorID) {
+            case 0: 
+            digitalWriteFast( STEPPER_0_DIR, LOW);
+            // digitalWrite( STEPPER_0_DIR, LOW);
+            break;
+            case 1: digitalWriteFast( STEPPER_1_DIR, LOW);
+            break;
+            case 2: digitalWriteFast( STEPPER_2_DIR, LOW);
+            break;
+        }
+        #endif
+    }
+    
+    
+    #if defined(KIP33) && (defined(STEPPER_0_STEP) || defined(STEPPER_1_STEP) || defined(STEPPER_2_STEP))
+    switch (_motorID) {
+        case 0: 
+        // digitalWriteFast( STEPPER_0_STEP, HIGH);
+        digitalWrite( STEPPER_0_STEP, HIGH);
+        break;
+        case 1: digitalWriteFast( STEPPER_1_STEP, HIGH);
+        break;
+        case 2: digitalWriteFast( STEPPER_2_STEP, HIGH);
+        break;
+    }
     _stepActive = true;
     _timeSinceLastStep = 0;
     _direction ? _currentPosition++ : _currentPosition--; // if direction true, conventionally clockwise, then increment the current position. if negative, decrement. 
     
     // tracks position in revolutions
-    if (_direction) {
+    if (getDirection()) {
         _currentPositionRevolutions += 1.f/((double)_stepsPerRevolution);
     } else {
         _currentPositionRevolutions -= 1.f/((double)_stepsPerRevolution);
@@ -230,8 +483,25 @@ void StepperController::step() {
     if ( _hasSlave ) {
         _slave->step();
     }
-    digitalWrite( _stepPin, LOW ); // lower the step pin
+    
+    
     _stepActive = false;
+    // digitalWriteFast( STEPPER_0_STEP, LOW);
+    // digitalWriteFast( STEPPER_1_STEP, LOW);
+    // digitalWriteFast( STEPPER_2_STEP, LOW);
+    switch (_motorID) {
+        case 0: 
+        // digitalWriteFast( STEPPER_0_STEP, LOW);
+        digitalWrite( STEPPER_0_STEP, LOW);
+        break;
+        case 1: digitalWriteFast( STEPPER_1_STEP, LOW);
+        break;
+        case 2: digitalWriteFast( STEPPER_2_STEP, LOW);
+        break;
+    }
+    #endif
+
+    
 }
 
 /**
@@ -239,8 +509,8 @@ void StepperController::step() {
  * @param the roations per minute
  * @returns microsecond interval between steps
  */
-unsigned long StepperController::rpmToMicros( float RPM ) {
-    return (unsigned long)((60.f * 1e6) / (abs(RPM) * ((float)_stepsPerRevolution)));
+unsigned long StepperController::rpmToMicros( double RPM ) {
+    return (unsigned long)((60.f * 1e6) / (fabs(RPM) * ((double)_stepsPerRevolution)));
 }
 
 /**
@@ -248,15 +518,15 @@ unsigned long StepperController::rpmToMicros( float RPM ) {
  * @param number of rotations to convert
  * @return number of steps the motor needs to take to equate to approximate rotations.
  */
-long long StepperController::rotationsToSteps( float rotations ) {
-    return (rotations * _stepsPerRevolution);
+long long StepperController::rotationsToSteps( double rotations ) {
+    return (rotations * (double)_stepsPerRevolution);
 }
 
 /**
  * Function used to get the current position of the motor in revolutions.
  * @returns the current position of the motor in revolutions
  */
-float StepperController::getPosition() {
+double StepperController::getPosition() {
     return _currentPosition / (_stepsPerRevolution);
 }
 
@@ -269,7 +539,7 @@ float StepperController::getPosition() {
  * This function only effects motor behavior in modes: jog, speed, position.
  * @param speed in revolutions per minute.
  */
-void StepperController::setSpeed( float speed ) {
+void StepperController::setSpeed( double speed ) {
     _direction = speed > 0;
     _currentSpeed = speed;
 }
@@ -280,7 +550,7 @@ void StepperController::setSpeed( float speed ) {
  * @param the lower soft stop value in revolutions.
  * @param the upper soft stop value in revolutions.
  */
-void StepperController::setRange( float min, float max ) {
+void StepperController::setRange( double min, double max ) {
     _lowerSoftStop = rotationsToSteps(min);
     _upperSoftStop = rotationsToSteps(max);
 }
@@ -289,7 +559,7 @@ void StepperController::setRange( float min, float max ) {
  * This sets the positional setpoint of the motor in revolutions.
  * @param the absolute 'goal' revolutions value.
  */
-void StepperController::setPosition( float setpoint ) {
+void StepperController::setPosition( double setpoint ) {
     _positionSetpoint = rotationsToSteps(setpoint);
     _revPositionSetpoint = setpoint;
 }
@@ -311,7 +581,18 @@ void StepperController::setSleepOnDisable(bool sleep) {
  */
 void StepperController::enable() {
     _motorEnabled = true;
-    digitalWrite(_sleepPin, HIGH);
+
+    #ifdef KIP33
+    switch(_motorID) {
+        case 0: digitalWriteFast(STEPPER_0_SLEEP, HIGH);
+        break;
+        case 1: digitalWriteFast(STEPPER_1_SLEEP, HIGH);
+        break;
+        case 2: digitalWriteFast(STEPPER_2_SLEEP, HIGH);
+        break;
+    }
+    #endif
+
 }
 
 /**
@@ -320,7 +601,16 @@ void StepperController::enable() {
 void StepperController::disable() {
     _motorEnabled = false;
     if(_sleepOnDisable) {
-        digitalWrite(_sleepPin, LOW);
+        #ifdef KIP33
+        switch(_motorID) {
+            case 0: digitalWriteFast(STEPPER_0_SLEEP, LOW);
+            break;
+            case 1: digitalWriteFast(STEPPER_1_SLEEP, LOW);
+            break;
+            case 2: digitalWriteFast(STEPPER_2_SLEEP, LOW);
+            break;
+        }
+        #endif
     }
 }
 
@@ -362,7 +652,7 @@ void StepperController::setProfileMode(){
  * Commands the motor to jog a certain number of rotations. Uses sign as direction.
  * @param number of roations to move relative to current motor position.
  */
-void StepperController::setJog( float rotations ) {
+void StepperController::setJog( double rotations ) {
     _positionSetpoint = _currentPosition + ( rotationsToSteps( rotations ));
 }
 
@@ -397,11 +687,11 @@ void StepperController::updateSpeedMode( unsigned long dt ) {
     _timeSinceLastStep += dt;
 }
 
-float StepperController::getPositionSetpoint() {
+double StepperController::getPositionSetpoint() {
     return _positionSetpoint;
 }
 
-float StepperController::getPositionSetpointRevolutions(){
+double StepperController::getPositionSetpointRevolutions(){
     return _revPositionSetpoint;
 }
 
@@ -417,17 +707,25 @@ void StepperController::configureDriverCarrier(DriverCarrierBoard boardType) {
  * Updates the motor when it's in position mode.
  * @param the change in time form last loop.
  */
+unsigned long _delayTime;
 void StepperController::updatePositionMode( unsigned long dt ) {
-    if ( !motorInRange() ) {
-        return;
-    }
-    unsigned long _delayTime = rpmToMicros(_currentSpeed);
+    // if ( !motorInRange() ) {
+    //     return;
+    // }
+    _delayTime = rpmToMicros(_currentSpeed);
+    
+    // check if motor is in position according to setpoint
     if ( _currentPosition == _positionSetpoint ) {
         _inPosition = true;
         return;
     }
     _inPosition = false;
-    _direction = ( _positionSetpoint - _currentPosition ) >= 0; // compute direction given current postion and setpoint.
+
+
+    _direction = ( _positionSetpoint - _currentPosition ) > 0; // compute direction given current postion and setpoint.
+    if ( (_positionSetpoint - _currentPosition) == 0) {
+        return;
+    }
     if ( _timeSinceLastStep >= _delayTime ) {
         step();
     }

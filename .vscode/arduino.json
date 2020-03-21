@@ -1,6 +1,6 @@
 {
     "board": "arduino:avr:mega",
     "configuration": "cpu=atmega2560",
-    "sketch": "examples\\BoardLayoutTest\\BoardLayoutTest.ino",
+    "sketch": "examples\\KiP33-test\\KiP33-test.ino",
     "port": "COM3"
 }
